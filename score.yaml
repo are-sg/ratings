@@ -1,0 +1,25 @@
+apiVersion: score.dev/v1b1
+metadata:
+  name: ratings
+containers:
+  main:
+    image: .
+    variables:
+      DBCONN: postgresql://${resources.ratings-db.username}:${resources.ratings-db.password}@${resources.ratings-db.host}:${resources.ratings-db.port}/${resources.ratings-db.name}
+service:
+  ports:
+    www:
+      port: 3000
+      targetPort: 3000
+resources:
+  ratings-db:
+    type: postgres
+  rating-dns:
+    type: dns
+    id: app-dns
+  rating-route:
+    type: route
+    params:
+      path: /ratings
+      port: 3000
+      host: ${resources.rating-dns.host}
