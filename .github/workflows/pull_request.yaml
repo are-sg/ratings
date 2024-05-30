@@ -8,8 +8,7 @@ permissions:
 env:
   BASE_ENVIRONMENT: 'development'
   ENVIRONMENT_TYPE: 'ephemeral'
-  SCORE_HUMANITEC_VERSION: 0.10.0
-  HUMCTL_VERSION: 0.13.3
+  HUMCTL_VERSION: 0.24.0
   ENVIRONMENT_ID: pr-${{ github.event.number }}
   ENVIRONMENT_NAME: PR-${{ github.event.number }}
 jobs:
@@ -47,12 +46,6 @@ jobs:
             --token ${{ secrets.HUMANITEC_TOKEN }} \
             --org ${{ vars.HUMANITEC_ORG }} \
             --app ${{ vars.HUMANITEC_APP }}
-      - name: Install score-humanitec
-        run: |
-          wget https://github.com/score-spec/score-humanitec/releases/download/${{ env.SCORE_HUMANITEC_VERSION }}/score-humanitec_${{ env.SCORE_HUMANITEC_VERSION }}_linux_amd64.tar.gz
-          tar -xvf score-humanitec_${{ env.SCORE_HUMANITEC_VERSION }}_linux_amd64.tar.gz
-          chmod +x score-humanitec
-          mv score-humanitec /usr/local/bin
       - name: Run Score
         run: |
           if ! [ -f score.yaml ]
@@ -60,14 +53,13 @@ jobs:
             echo "no score file found, cannot deploy"
             exit 1
           fi
-          score-humanitec delta \
-              --image "${{ steps.build-push.outputs.image }}" \
-              --retry \
-              --deploy \
-              --token ${{ secrets.HUMANITEC_TOKEN }} \
-              --org ${{ vars.HUMANITEC_ORG }} \
-              --app ${{ vars.HUMANITEC_APP }} \
-              --env ${{ env.ENVIRONMENT_ID }} > score_output.json
+          humctl score deploy -f score.yaml \
+            --image "${{ steps.build-push.outputs.image }}" \
+            --wait \
+            --token ${{ secrets.HUMANITEC_TOKEN }} \
+            --org ${{ vars.HUMANITEC_ORG }} \
+            --app ${{ vars.HUMANITEC_APP }} \
+            --env ${{ env.ENVIRONMENT_ID }}
       - name: Wait for deployment
         run: |
           sleep 1
@@ -93,7 +85,6 @@ jobs:
           done
       - name: Build Comment Message
         run: |
-          ENV_URL="$(jq -r ".metadata.url" score_output.json)"
           DOMAINS="$(humctl get active-resources \
             --token ${{ secrets.HUMANITEC_TOKEN }} \
             --org ${{ vars.HUMANITEC_ORG }} \
@@ -104,7 +95,7 @@ jobs:
           echo "## Deployment Complete for ${{ env.ENVIRONMENT_NAME }}! :tada:" >> pr_message.txt
           echo "" >> pr_message.txt
           
-          echo "### [View in Humanitec]($ENV_URL)" >> pr_message.txt
+          echo "### [View in Humanitec](echo "### [View in Humanitec](https://app.humanitec.io/orgs/${{ vars.HUMANITEC_ORG }}/apps/${{ vars.HUMANITEC_APP }})/envs/${{ env.ENVIRONMENT_ID }}" >> pr_message.txt)" >> pr_message.txt
 
           echo "" >> pr_message.txt
           echo "### Domains:" >> pr_message.txt
@@ -112,16 +103,6 @@ jobs:
           echo "$DOMAINS" >> pr_message.txt
           echo "" >> pr_message.txt
 
-          echo "<details><summary>Score Output</summary>" >> pr_message.txt
-          echo "" >> pr_message.txt
-          echo "### Score Output:" >> pr_message.txt
-          echo '```json' >> pr_message.txt
-          echo "" >> pr_message.txt
-          cat score_output.json >> pr_message.txt
-          echo "" >> pr_message.txt
-          echo '```' >> pr_message.txt
-          echo "" >> pr_message.txt
-          echo "</details>" >> pr_message.txt
 
           cat pr_message.txt
       - name: Comment PR

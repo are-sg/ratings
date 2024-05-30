@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 env:
   ENVIRONMENT_ID: 'development'
-  SCORE_HUMANITEC_VERSION: 0.10.0
+  HUMCTL_VERSION: 0.24.0
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,12 +21,12 @@ jobs:
         with:
           humanitec-token: ${{ secrets.HUMANITEC_TOKEN }}
           organization: ${{ vars.HUMANITEC_ORG }}
-      - name: Install score-humanitec
+      - name: Install humctl
         run: |
-          wget https://github.com/score-spec/score-humanitec/releases/download/${{ env.SCORE_HUMANITEC_VERSION }}/score-humanitec_${{ env.SCORE_HUMANITEC_VERSION }}_linux_amd64.tar.gz
-          tar -xvf score-humanitec_${{ env.SCORE_HUMANITEC_VERSION }}_linux_amd64.tar.gz
-          chmod +x score-humanitec
-          mv score-humanitec /usr/local/bin
+          wget https://github.com/humanitec/cli/releases/download/v${{ env.HUMCTL_VERSION }}/cli_${{ env.HUMCTL_VERSION }}_linux_amd64.tar.gz
+          tar -xvf cli_${{ env.HUMCTL_VERSION }}_linux_amd64.tar.gz
+          chmod +x humctl
+          mv humctl /usr/local/bin
       - name: Run Score
         run: |
           if ! [ -f score.yaml ]
@@ -34,11 +34,10 @@ jobs:
             echo "no score file found, cannot deploy"
             exit 1
           fi
-          score-humanitec delta \
-              --image "${{ steps.build-push.outputs.image }}" \
-              --retry \
-              --deploy \
-              --token ${{ secrets.HUMANITEC_TOKEN }} \
-              --org ${{ vars.HUMANITEC_ORG }} \
-              --app ${{ vars.HUMANITEC_APP }} \
-              --env ${{ env.ENVIRONMENT_ID }} > score_output.json
+           humctl score deploy -f score.yaml \
+            --image "${{ steps.build-push.outputs.image }}" \
+            --wait \
+            --token ${{ secrets.HUMANITEC_TOKEN }} \
+            --org ${{ vars.HUMANITEC_ORG }} \
+            --app ${{ vars.HUMANITEC_APP }} \
+            --env ${{ env.ENVIRONMENT_ID }}
